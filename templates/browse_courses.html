@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="container mt-5 pt-5">
+  <h2 class="fw-bold mb-4 text-center">📚 Browse Courses</h2>
+
+  {% if courses and courses|length > 0 %}
+    <div class="row g-4">
+      {% for course in courses %}
+        <div class="col-12">
+          <div class="card shadow-sm rounded-4 p-4 h-100">
+            <h4 class="fw-bold">{{ course.title }}</h4>
+            <p class="text-muted">{{ course.description }}</p>
+
+            {% if course.instructor %}
+              <p><strong>Instructor:</strong> {{ course.instructor }}</p>
+            {% endif %}
+            
+            {% if course.duration %}
+              <p><strong>Duration:</strong> {{ course.duration }}</p>
+            {% endif %}
+
+            {% if course.level %}
+              <p><strong>Level:</strong> {{ course.level }}</p>
+            {% endif %}
+
+            <div class="d-flex justify-content-between align-items-center mt-3">
+              <a href="#" class="btn btn-dark rounded-pill">View Details</a>
+              <form method="POST" action="{{ url_for('enroll_course', course_id=str(course._id)) }}">
+                <button type="submit" class="btn btn-outline-dark rounded-pill">Enroll</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="text-center text-muted">No courses available at the moment. Please check back later.</p>
+  {% endif %}
+</section>
+{% endblock %}

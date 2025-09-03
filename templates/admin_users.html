@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ title if title else "Registered Users - Admin Panel" }}</title>
+
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="bg-light" style="font-family: 'Inter', sans-serif;">
+
+  <!-- Navbar (same as dashboard) -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm py-3 fixed-top">
+    <div class="container">
+      <a class="navbar-brand fw-bold text-white" href="#">Admin Panel</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="adminNav">
+        <ul class="navbar-nav ms-auto align-items-center">
+          <li class="nav-item"><a class="nav-link text-white" href="{{ url_for('admin_dashboard') }}">Dashboard</a></li>
+          <li class="nav-item"><a class="nav-link text-white active" href="{{ url_for('admin_users') }}">Registered Users</a></li>
+          <li class="nav-item"><a class="nav-link text-white" href="{{ url_for('admin_courses') }}">Course Submissions</a></li>
+          <a class="btn btn-outline-light px-4 rounded-pill" 
+   href="{{ url_for('logout') }}" 
+   onclick="return confirm('Are you sure you want to log out?');">
+   Logout
+</a>
+
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Page Content -->
+  <main class="mt-5 pt-5 container">
+    <h2 class="fw-bold mb-4">👥 Registered Users</h2>
+
+    <!-- Users Table -->
+    <div class="card shadow-sm rounded-4 border-0">
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead class="table-dark">
+              <tr>
+                <th scope="col">Sr.No</th>
+                <th scope="col">Name</th>
+                <th scope="col">Email</th>
+                <th scope="col">Role</th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for user in users %}
+              <tr>
+                <th scope="row">{{ loop.index }}</th>
+                <td>{{ user.name }}</td>
+                <td>{{ user.email }}</td>
+                <td><span class="badge bg-secondary">{{ user.role }}</span></td>
+                <td>
+                  <a href="{{ url_for('delete_user', user_id=user._id) }}" 
+   class="btn btn-sm btn-danger rounded-pill"
+   onclick="return confirm('Are you sure you want to delete this user?');">
+   Delete
+</a>
+
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="5" class="text-center text-muted">No registered users found.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-white border-top text-center py-3 mt-5">
+    <p class="mb-0 text-muted">&copy; {{ 2025 }} Admin Dashboard · LMS by Syntax Syndicate</p>
+  </footer>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
