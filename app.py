@@ -27,6 +27,8 @@ client = MongoClient(
 
 db = client["lms_db"]
 users_collection = db["users"]
+courses_collection = db["courses"]
+
 
 # Ensure unique emails
 users_collection.create_index("email", unique=True)
@@ -254,7 +256,7 @@ def admin_courses():
 
     # Example: fetch all course submissions
     courses = list(courses_collection.find())
-    return render_template("admin_courses.html", courses=courses, title="Course Submissions")
+    return render_template("admin_course_submissions.html", courses=courses, title="Course Submissions")
 
 
 @app.route('/admin/delete_user/<user_id>')
@@ -267,6 +269,261 @@ def delete_user(user_id):
     users_collection.delete_one({"_id": ObjectId(user_id)})
     flash("User deleted successfully.", "success")
     return redirect(url_for('admin_users'))
+
+@app.route("/admin/manage_courses", methods=["GET", "POST"])
+def admin_manage_courses():
+    if request.method == "POST":
+        course_name = request.form.get("course_name")
+        description = request.form.get("description")
+
+        if not course_name:
+            flash("Course name is required", "danger")
+        else:
+            courses_collection.insert_one({
+                "name": course_name,
+                "description": description,
+                "weeks": [],  # Empty weeks by default
+                "assessments": []  # Empty assessments by default
+            })
+            flash("Course added successfully!", "success")
+        return redirect(url_for("admin_manage_courses"))
+
+    courses = list(courses_collection.find())
+    return render_template("admin_manage_courses.html", courses=courses)
+
+
+# ---------------- Course Dashboard ----------------
+@app.route("/admin/course/<course_id>/dashboard", methods=["GET", "POST"])
+def course_dashboard(course_id):
+    course = courses_collection.find_one({"_id": ObjectId(course_id)})
+    if not course:
+        flash("Course not found", "danger")
+        return redirect(url_for("admin_manage_courses"))
+
+    if request.method == "POST":
+        action = request.form.get("action")
+
+        # ---------------- Add or Update Week ----------------
+        if action == "add_week":
+            week_title = request.form.get("week_title")
+            courses_collection.update_one(
+                {"_id": ObjectId(course_id)},
+                {"$push": {"weeks": {"title": week_title, "content": []}}}
+            )
+            flash("Week added successfully!", "success")
+
+        elif action == "update_week":
+            week_index = int(request.form.get("week_index"))
+            week_title = request.form.get("week_title")
+            courses_collection.update_one(
+                {"_id": ObjectId(course_id)},
+                {"$set": {f"weeks.{week_index}.title": week_title}}
+            )
+            flash("Week updated successfully!", "success")
+
+        elif action == "delete_week":
+            week_index = int(request.form.get("week_index"))
+            courses_collection.update_one(
+                {"_id": ObjectId(course_id)},
+                {"$unset": {f"weeks.{week_index}": 1}}
+            )
+            courses_collection.update_one(
+                {"_id": ObjectId(course_id)},
+                {"$pull": {"weeks": None}}
+            )
+            flash("Week deleted successfully!", "success")
+
+        # ---------------- Add or Update Content ----------------
+        elif action == "add_content":
+            week_index = int(request.form.get("week_index"))
+            content_type = request.form.get("content_type")
+            title = request.form.get("content_title")
+            url = request.form.get("content_url")
+
+            # NEW: embed link support for videos
+            embed_link = None
+            if content_type == "video":
+                embed_link = request.form.get("content_embed")
+
+            content_data = {
+                "type": content_type,
+                "title": title,
+                "url": url
+            }
+            if embed_link:
+                content_data["embed"] = embed_link
+
+            courses_collection.update_one(
+                {"_id": ObjectId(course_id)},
+                {"$push": {f"weeks.{week_index}.content": content_data}}
+            )
+            flash("Content added successfully!", "success")
+
+        elif action == "delete_content":
+            week_index = int(request.form.get("week_index"))
+            content_index = int(request.form.get("content_index"))
+
+            # remove specific content
+            courses_collection.update_one(
+                {"_id": ObjectId(course_id)},
+                {"$unset": {f"weeks.{week_index}.content.{content_index}": 1}}
+            )
+            courses_collection.update_one(
+                {"_id": ObjectId(course_id)},
+                {"$pull": {f"weeks.{week_index}.content": None}}
+            )
+            flash("Content deleted!", "success")
+
+        # ---------------- Add or Update Assessment ----------------
+        elif action == "add_assessment":
+            title = request.form.get("assessment_title")
+            desc = request.form.get("assessment_desc")
+            courses_collection.update_one(
+                {"_id": ObjectId(course_id)},
+                {"$push": {"assessments": {
+                    "title": title,
+                    "description": desc,
+                    "questions": []
+                }}}
+            )
+            flash("Assessment created!", "success")
+
+        elif action == "update_assessment":
+            assessment_index = int(request.form.get("assessment_index"))
+            title = request.form.get("assessment_title")
+            desc = request.form.get("assessment_desc")
+
+            update_data = {}
+            if title is not None:
+                update_data[f"assessments.{assessment_index}.title"] = title
+            if desc is not None:
+                update_data[f"assessments.{assessment_index}.description"] = desc
+
+            if update_data:
+                courses_collection.update_one(
+                    {"_id": ObjectId(course_id)},
+                    {"$set": update_data}
+                )
+                flash("Assessment updated!", "success")
+
+
+        elif action == "add_question":
+            assessment_index = int(request.form.get("assessment_index"))
+            question_text = request.form.get("question_text")
+            options_raw = request.form.get("options")  # single input field
+
+            # Convert CSV string into a list
+            if options_raw:
+                options = [opt.strip() for opt in options_raw.split(",")]
+            else:
+                options = []
+
+            try:
+                correct = int(request.form.get("correct"))
+            except (TypeError, ValueError):
+                correct = -1  # fallback if not provided
+
+            courses_collection.update_one(
+                {"_id": ObjectId(course_id)},
+                {"$push": {
+                    f"assessments.{assessment_index}.questions": {
+                        "question": question_text,
+                        "options": options,
+                        "correct": correct
+                    }
+                }}
+            )
+            flash("Question added!", "success")
+
+        elif action == "delete_question":
+            assessment_index = int(request.form.get("assessment_index"))
+            question_index = int(request.form.get("question_index"))
+
+            # Step 1: Unset the specific question
+            courses_collection.update_one(
+                {"_id": ObjectId(course_id)},
+                {"$unset": {f"assessments.{assessment_index}.questions.{question_index}": 1}}
+            )
+
+            # Step 2: Pull out the null left behind
+            courses_collection.update_one(
+                {"_id": ObjectId(course_id)},
+                {"$pull": {f"assessments.{assessment_index}.questions": None}}
+            )
+
+            flash("Question deleted!", "success")
+
+        elif action == "update_question":
+            assessment_index = int(request.form.get("assessment_index"))
+            question_index = int(request.form.get("question_index"))
+
+            question_text = request.form.get("question_text")
+            options_raw = request.form.get("options")  # CSV string: "opt1, opt2, opt3"
+            correct = request.form.get("correct")
+
+            # Normalize options
+            if options_raw:
+                options = [opt.strip() for opt in options_raw.split(",")]
+            else:
+                options = []
+
+            try:
+                correct = int(correct)
+            except (TypeError, ValueError):
+                correct = -1
+
+            update_data = {}
+            if question_text:
+                update_data[f"assessments.{assessment_index}.questions.{question_index}.question"] = question_text
+            if options:
+                update_data[f"assessments.{assessment_index}.questions.{question_index}.options"] = options
+            if correct is not None:
+                update_data[f"assessments.{assessment_index}.questions.{question_index}.correct"] = correct
+
+            if update_data:
+                courses_collection.update_one(
+                    {"_id": ObjectId(course_id)},
+                    {"$set": update_data}
+                )
+                flash("Question updated!", "success")
+
+
+        elif action == "delete_assessment":
+            assessment_index = int(request.form.get("assessment_index"))
+            courses_collection.update_one(
+                {"_id": ObjectId(course_id)},
+                {"$unset": {f"assessments.{assessment_index}": 1}}
+            )
+            courses_collection.update_one(
+                {"_id": ObjectId(course_id)},
+                {"$pull": {"assessments": None}}
+            )
+            flash("Assessment deleted!", "success")
+
+        elif action == "update_content":
+            week_index = int(request.form.get("week_index"))
+            content_index = int(request.form.get("content_index"))
+            title = request.form.get("content_title")
+            url = request.form.get("content_url")
+            embed = request.form.get("content_embed")
+
+            update_data = {
+        f"weeks.{week_index}.content.{content_index}.title": title,
+        f"weeks.{week_index}.content.{content_index}.url": url,
+        f"weeks.{week_index}.content.{content_index}.embed": embed
+    }
+
+            courses_collection.update_one(
+            {"_id": ObjectId(course_id)},
+            {"$set": update_data}
+    )
+            flash("Content updated successfully!", "success")
+
+        return redirect(url_for("course_dashboard", course_id=course_id))
+
+    return render_template("course_dashboard.html", course=course)
+
+
 
 # ==== Run ====
 if __name__ == "__main__":
