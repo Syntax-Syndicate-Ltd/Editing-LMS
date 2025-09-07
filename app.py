@@ -292,7 +292,7 @@ def admin_manage_courses():
     return render_template("admin_manage_courses.html", courses=courses)
 
 
-# ---------------- Course Dashboard ----------------
+# --------------- Course Dashboard ---------------
 @app.route("/admin/course/<course_id>/dashboard", methods=["GET", "POST"])
 def course_dashboard(course_id):
     course = courses_collection.find_one({"_id": ObjectId(course_id)})
