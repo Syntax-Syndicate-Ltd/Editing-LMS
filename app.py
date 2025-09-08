@@ -9,6 +9,7 @@ import bcrypt
 import os
 import certifi
 from bson.objectid import ObjectId
+import datetime
 
 app = Flask(__name__)
 
@@ -28,10 +29,23 @@ client = MongoClient(
 db = client["lms_db"]
 users_collection = db["users"]
 courses_collection = db["courses"]
+enrollments_collection = db["enrollments"]
+
+
+from werkzeug.utils import secure_filename
+
+# New collection for requests
+enrollment_requests = db["enrollment_requests"]
 
 
 # Ensure unique emails
 users_collection.create_index("email", unique=True)
+
+
+UPLOAD_FOLDER = "static/uploads"
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # ==== Seed Admins (Werkzeug hashes; idempotent) ====
 seed_admins = [
@@ -132,11 +146,10 @@ def user_dashboard():
     return render_template("user_dash.html", user=user)
 
 
-
 @app.route("/logout")
 def logout():
     session.clear()
-    flash("You have been logged out.", "info")
+    flash("Logged out successfully!", "success")
     return redirect(url_for("login"))
 
 @app.route("/edit_profile", methods=["POST"])
@@ -172,43 +185,27 @@ def edit_profile():
 
     flash("Profile updated successfully!", "success")
     return redirect(url_for("user_dashboard"))
-
 @app.route("/browse_courses")
 def browse_courses():
-    if "user_id" not in session or session.get("role") != "user":
-        flash("Please log in as a user to continue.", "warning")
-        return redirect(url_for("login"))
+    user_id = str(session.get("user_id")) if "user_id" in session else None
 
-    # Fetch all courses from DB
-    courses = list(db["courses"].find({}, {"_id": 0}))  
+    courses = list(courses_collection.find())
+    for c in courses:
+        c["_id"] = str(c["_id"])
 
-    return render_template("browse_courses.html", courses=courses)
+    user_enrollments = {}
+    if user_id:
+        requests = enrollment_requests.find({"user_id": user_id})
+        for r in requests:
+            # Only include relevant statuses
+            if r.get("status") in ["pending_admin_approval", "approved", "rejected"]:
+                user_enrollments[str(r["course_id"])] = r
 
-
-@app.route("/enroll/<course_id>", methods=["POST"])
-def enroll_course(course_id):
-    if "user_id" not in session:
-        flash("Please log in to enroll.", "warning")
-        return redirect(url_for("login"))
-
-    course = db["courses"].find_one({"_id": ObjectId(course_id)})
-    if not course:
-        flash("Course not found.", "danger")
-        return redirect(url_for("browse_courses"))
-
-    # Add course to user’s enrolled list if not already
-    users_collection.update_one(
-        {"_id": ObjectId(session["user_id"])},
-        {"$addToSet": {"courses": {
-            "_id": course["_id"],
-            "title": course["title"],
-            "description": course.get("description", ""),
-            "progress": 0  # start at 0%
-        }}}
+    return render_template(
+        "browse_courses.html",
+        courses=courses,
+        user_enrollments=user_enrollments
     )
-
-    flash(f"You have successfully enrolled in {course['title']}!", "success")
-    return redirect(url_for("user_dashboard"))
 
 
 # ----------------------
@@ -290,6 +287,104 @@ def admin_manage_courses():
 
     courses = list(courses_collection.find())
     return render_template("admin_manage_courses.html", courses=courses)
+
+
+
+@app.route("/admin/course_enrollments")
+def admin_course_enrollments():
+    enrollments = list(enrollment_requests.find())
+    
+    # Convert ObjectId to string for Jinja
+    for e in enrollments:
+        e["_id"] = str(e["_id"])
+        # Fix backslashes in screenshot path
+        if "screenshot_path" in e and e["screenshot_path"]:
+            e["screenshot_path"] = e["screenshot_path"].replace("\\", "/")
+    
+    return render_template(
+        "admin_course_enrollments.html",
+        enrollments=enrollments,
+        title="Course Enrollments"
+    )
+
+def allowed_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@app.route("/request_enrollment/<course_id>", methods=["GET", "POST"])
+def request_enrollment(course_id):
+    if "user_id" not in session or session.get("role") != "user":
+        flash("Please login!", "danger")
+        return redirect(url_for("login"))
+
+    user_id = str(session["user_id"])
+    course = courses_collection.find_one({"_id": ObjectId(course_id)})
+    user = users_collection.find_one({"_id": ObjectId(user_id)})
+
+    if not course:
+        flash("Course not found!", "danger")
+        return redirect(url_for("browse_courses"))
+
+    if request.method == "POST":
+        if "screenshot" not in request.files:
+            flash("No screenshot uploaded!", "danger")
+            return redirect(request.url)
+
+        file = request.files["screenshot"]
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+            file.save(filepath)
+
+            # Save request in DB
+            enrollment_requests.insert_one({
+                "course_id": str(course["_id"]),
+                "course_name": course["name"],
+                "user_id": user_id,
+                "user_name": user["name"],
+                "user_email": user["email"],
+                "screenshot_path": filepath,
+                "status": "pending_admin_approval",
+                "created_at": datetime.datetime.utcnow()
+            })
+
+            flash("Enrollment request submitted! Waiting for admin approval.", "info")
+            return redirect(url_for("enrollment_requested"))
+        else:
+            flash("Invalid file type! Only JPG/PNG allowed.", "danger")
+
+    return render_template("enrollment_form.html", course=course, user=user)
+
+
+@app.route("/enrollment_requested")
+def enrollment_requested():
+    if "user_id" not in session:
+        flash("Please login first!", "danger")
+        return redirect(url_for("login"))
+
+    requests = list(enrollment_requests.find({
+        "user_id": str(session["user_id"])
+    }).sort("created_at", -1))
+
+    return render_template("enrollment_requested.html", enrollments=requests)
+
+@app.route("/admin/approve_enrollment/<enrollment_id>", methods=["POST"])
+def approve_enrollment(enrollment_id):
+    enrollment_requests.update_one(
+        {"_id": ObjectId(enrollment_id)},
+        {"$set": {"status": "approved"}}
+    )
+    flash("Enrollment approved!", "success")
+    return redirect(url_for("admin_course_enrollments"))
+
+@app.route("/admin/reject_enrollment/<enrollment_id>", methods=["POST"])
+def reject_enrollment(enrollment_id):
+    enrollment_requests.update_one(
+        {"_id": ObjectId(enrollment_id)},
+        {"$set": {"status": "rejected"}}
+    )
+    flash("Enrollment rejected!", "danger")
+    return redirect(url_for("admin_course_enrollments"))
 
 
 # --------------- Course Dashboard ---------------

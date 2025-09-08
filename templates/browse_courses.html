@@ -9,7 +9,7 @@
       {% for course in courses %}
         <div class="col-12">
           <div class="card shadow-sm rounded-4 p-4 h-100">
-            <h4 class="fw-bold">{{ course.title }}</h4>
+            <h4 class="fw-bold">{{ course.name }}</h4>
             <p class="text-muted">{{ course.description }}</p>
 
             {% if course.instructor %}
@@ -26,9 +26,28 @@
 
             <div class="d-flex justify-content-between align-items-center mt-3">
               <a href="#" class="btn btn-dark rounded-pill">View Details</a>
-              <form method="POST" action="{{ url_for('enroll_course', course_id=str(course._id)) }}">
-                <button type="submit" class="btn btn-outline-dark rounded-pill">Enroll</button>
-              </form>
+
+              {% set enrollment = user_enrollments.get(course._id) %}
+              {% if enrollment %}
+                {% if enrollment.status == "pending_admin_approval" %}
+                  <button class="btn btn-warning rounded-pill" disabled>
+                    Pending Approval
+                  </button>
+                {% elif enrollment.status == "approved" %}
+                  <button class="btn btn-success rounded-pill" disabled>
+                    Enrolled
+                  </button>
+                {% elif enrollment.status == "rejected" %}
+                  <a href="{{ url_for('request_enrollment', course_id=course._id) }}" class="btn btn-outline-dark rounded-pill">
+                    Reapply
+                  </a>
+                {% endif %}
+              {% else %}
+                <!-- Redirects to the upload form -->
+                <a href="{{ url_for('request_enrollment', course_id=course._id) }}" class="btn btn-outline-dark rounded-pill">
+                  Enroll
+                </a>
+              {% endif %}
             </div>
           </div>
         </div>

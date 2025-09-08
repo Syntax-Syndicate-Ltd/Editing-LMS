@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="container mt-5 pt-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-6 col-md-8 col-sm-10">
+      <div class="card shadow-sm rounded-4 p-4">
+        <h3 class="fw-bold mb-4 text-center">Enroll in {{ course.name }}</h3>
+        <p class="text-muted text-center">Please upload your payment screenshot to complete enrollment.</p>
+
+        <form method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
+          <!-- User Info -->
+          <div class="mb-3">
+            <label class="form-label fw-bold">Name</label>
+            <input type="text" class="form-control" value="{{ user.name }}" readonly>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Email</label>
+            <input type="email" class="form-control" value="{{ user.email }}" readonly>
+          </div>
+
+          <!-- Screenshot Upload -->
+          <div class="mb-3">
+            <label for="screenshot" class="form-label fw-bold">Payment Screenshot</label>
+            <input type="file" class="form-control" name="screenshot" id="screenshot" accept="image/*" required>
+            <div class="form-text text-muted">Accepted formats: JPG, JPEG, PNG</div>
+          </div>
+
+          <button type="submit" class="btn btn-dark w-100 rounded-pill">Submit Enrollment</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
