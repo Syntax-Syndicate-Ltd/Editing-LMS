@@ -28,6 +28,23 @@
           <li class="nav-item"><a class="nav-link text-white" href="{{ url_for('admin_manage_courses') }}">Manage Courses</a></li>
           <li class="nav-item"><a class="nav-link text-white active" href="{{ url_for('admin_course_enrollments') }}">Course Enrollments</a></li>
           <li class="nav-item"><a class="nav-link text-white" href="{{ url_for('admin_courses') }}">Course Submissions</a></li>
+          <li class="nav-item me-3 position-relative">
+  <a class="nav-link text-white" href="{{ url_for('admin_notifications') }}">
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" class="bi bi-bell" viewBox="0 0 16 16">
+      <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2z"/>
+      <path d="M8 1a5 5 0 0 0-5 5v3.086l-.707.707A1 1 0 0 0 3 12h10a1 1 0 0 0 .707-1.707L13 9.086V6a5 5 0 0 0-5-5z"/>
+    </svg>
+    {% if unread_count > 0 %}
+      <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+        {{ unread_count }}
+      </span>
+    {% endif %}
+  </a>
+</li>
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" class="bi bi-bell" viewBox="0 0 16 16">
+      <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2z"/>
+      <path d="M8 1a5 5 0 0 0-5 5v3.086l-.707.707A1 1 0 0 0 3 12h10a1 1 0 0 0 .707-1.707L13 9.086V6a5 5 0 0 0-5-5z"/>
+    </svg>
 
           <a class="btn btn-outline-light px-4 rounded-pill" href="{{ url_for('logout') }}" onclick="return confirm('Are you sure you want to log out?');">
             Logout
@@ -46,7 +63,7 @@
         <table class="table table-hover align-middle shadow-sm bg-white rounded">
           <thead class="table-dark">
             <tr>
-              <th scope="col">#</th>
+              <th scope="col">Sr. No</th>
               <th scope="col">User Name</th>
               <th scope="col">Email</th>
               <th scope="col">Course</th>

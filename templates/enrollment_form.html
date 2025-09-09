@@ -6,7 +6,12 @@
     <div class="col-lg-6 col-md-8 col-sm-10">
       <div class="card shadow-sm rounded-4 p-4">
         <h3 class="fw-bold mb-4 text-center">Enroll in {{ course.name }}</h3>
-        <p class="text-muted text-center">Please upload your payment screenshot to complete enrollment.</p>
+        <p class="text-muted text-center">Please scan the QR code below and upload your payment screenshot to complete enrollment.</p>
+
+        <!-- QR Code Display -->
+        <div class="text-center mb-4">
+          <img src="/static/qr/your_qr.jpg" alt="Payment QR Code" class="img-fluid" style="max-width: 200px;">
+        </div>
 
         <form method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
           <!-- User Info -->

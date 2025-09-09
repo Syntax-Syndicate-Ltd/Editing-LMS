@@ -30,6 +30,7 @@ db = client["lms_db"]
 users_collection = db["users"]
 courses_collection = db["courses"]
 enrollments_collection = db["enrollments"]
+notifications_collection = db["notifications"]
 
 
 from werkzeug.utils import secure_filename
@@ -370,21 +371,107 @@ def enrollment_requested():
 
 @app.route("/admin/approve_enrollment/<enrollment_id>", methods=["POST"])
 def approve_enrollment(enrollment_id):
+    enrollment = enrollment_requests.find_one({"_id": ObjectId(enrollment_id)})
+    if not enrollment:
+        flash("Enrollment not found!", "danger")
+        return redirect(url_for("admin_course_enrollments"))
+
     enrollment_requests.update_one(
         {"_id": ObjectId(enrollment_id)},
         {"$set": {"status": "approved"}}
     )
-    flash("Enrollment approved!", "success")
+
+    # Send notification
+    notifications_collection.insert_one({
+        "user_id": enrollment["user_id"],
+        "message": f"Your enrollment in {enrollment['course_name']} has been approved!",
+        "is_read": False,
+        "created_at": datetime.datetime.utcnow()
+    })
+
+    flash("Enrollment approved and user notified!", "success")
     return redirect(url_for("admin_course_enrollments"))
 
 @app.route("/admin/reject_enrollment/<enrollment_id>", methods=["POST"])
 def reject_enrollment(enrollment_id):
+    enrollment = enrollment_requests.find_one({"_id": ObjectId(enrollment_id)})
+    if not enrollment:
+        flash("Enrollment not found!", "danger")
+        return redirect(url_for("admin_course_enrollments"))
+
     enrollment_requests.update_one(
         {"_id": ObjectId(enrollment_id)},
         {"$set": {"status": "rejected"}}
     )
-    flash("Enrollment rejected!", "danger")
+
+    # Send notification
+    notifications_collection.insert_one({
+        "user_id": enrollment["user_id"],
+        "message": f"Your enrollment in {enrollment['course_name']} has been rejected.",
+        "is_read": False,
+        "created_at": datetime.datetime.utcnow()
+    })
+
+    flash("Enrollment rejected and user notified!", "success")
     return redirect(url_for("admin_course_enrollments"))
+
+
+
+@app.route("/admin/notifications", methods=["GET", "POST"])
+def admin_notifications():
+    if "user_id" not in session or session.get("role") != "admin":
+        flash("Admins only!", "danger")
+        return redirect(url_for("login"))
+
+    if request.method == "POST":
+        user_id = request.form.get("user_id")
+        message = request.form.get("message")
+        if user_id and message:
+            notifications_collection.insert_one({
+                "user_id": user_id,
+                "message": message,
+                "is_read": False,
+                "created_at": datetime.datetime.utcnow()
+            })
+            flash("Notification sent!", "success")
+            return redirect(url_for("admin_notifications"))
+
+    users = list(users_collection.find({}, {"password": 0}))
+    notifications = list(notifications_collection.find().sort("created_at", -1))
+
+    # Mark all admin notifications as read
+    notifications_collection.update_many({"is_read": False}, {"$set": {"is_read": True}})
+
+    return render_template("admin_notifications.html", users=users, notifications=notifications)
+
+
+
+@app.route("/user/notifications")
+def user_notifications():
+    if "user_id" not in session or session.get("role") != "user":
+        flash("Please log in first.", "warning")
+        return redirect(url_for("login"))
+
+    user_id = session["user_id"]
+    notifications = list(notifications_collection.find({"user_id": user_id}).sort("created_at", -1))
+    return render_template("user_notifications.html", notifications=notifications)
+
+@app.context_processor
+def inject_notifications_count():
+    if "user_id" in session and session.get("role") == "admin":
+        unread_count = notifications_collection.count_documents({"is_read": False})
+        return dict(unread_count=unread_count)
+    return dict(unread_count=0)
+
+@app.context_processor
+def inject_user_notifications_count():
+    if "user_id" in session and session.get("role") == "user":
+        unread_count = notifications_collection.count_documents({
+            "user_id": session["user_id"],
+            "is_read": False
+        })
+        return dict(unread_count=unread_count)
+    return dict(unread_count=0)
 
 
 # --------------- Course Dashboard ---------------

@@ -30,6 +30,30 @@
 </li>
           <li class="nav-item"><a class="nav-link text-white active" href="{{ url_for('admin_course_enrollments') }}">Course Enrollments</a></li>
           <li class="nav-item"><a class="nav-link text-white" href="{{ url_for('admin_courses') }}">Course Submissions</a></li>
+          <li class="nav-item me-3">
+
+<li class="nav-item me-3 position-relative">
+  <a class="nav-link text-white" href="{{ url_for('admin_notifications') }}">
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" class="bi bi-bell" viewBox="0 0 16 16">
+      <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2z"/>
+      <path d="M8 1a5 5 0 0 0-5 5v3.086l-.707.707A1 1 0 0 0 3 12h10a1 1 0 0 0 .707-1.707L13 9.086V6a5 5 0 0 0-5-5z"/>
+    </svg>
+    {% if unread_count > 0 %}
+      <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+        {{ unread_count }}
+      </span>
+    {% endif %}
+  </a>
+</li>
+
+    {% if unread_count > 0 %}
+      <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+        {{ unread_count }}
+      </span>
+    {% endif %}
+  </a>
+</li>
+
           <a class="btn btn-outline-light px-4 rounded-pill" 
    href="{{ url_for('logout') }}" 
    onclick="return confirm('Are you sure you want to log out?');">
@@ -40,6 +64,18 @@
       </div>
     </div>
   </nav>
+
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
 
   <!-- Page Content -->
   <main class="mt-5 pt-5 container">
