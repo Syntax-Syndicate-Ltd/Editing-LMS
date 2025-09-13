@@ -138,8 +138,11 @@ def user_dashboard():
         flash("Please log in as a user to continue.", "warning")
         return redirect(url_for("login"))
 
+    user_id = str(session.get("user_id"))
+
+    # Get user info
     user = users_collection.find_one(
-        {"_id": ObjectId(session["user_id"])},
+        {"_id": ObjectId(user_id)},
         {"password": 0}  # don't send hash to template
     )
     if not user:
@@ -147,7 +150,46 @@ def user_dashboard():
         flash("Session expired. Please log in again.", "warning")
         return redirect(url_for("login"))
 
-    return render_template("user_dash.html", user=user)
+    # Get all courses
+    courses = list(courses_collection.find())
+    for c in courses:
+        c["_id"] = str(c["_id"])
+
+    # Track enrollments
+    enrolled_courses = []
+    requests = enrollment_requests.find({"user_id": user_id})
+    for r in requests:
+        course_id = str(r["course_id"])
+        # collect approved courses
+        if r.get("status") == "approved":
+            course = next((c for c in courses if c["_id"] == course_id), None)
+            if course:
+                enrolled_courses.append(course)
+
+    # Optionally, count unread notifications
+    unread_count = notifications_collection.count_documents({
+        "user_id": ObjectId(user_id),
+        "read": False
+    })
+
+    return render_template(
+        "user_dash.html",
+        user=user,
+        enrolled_courses=enrolled_courses,
+        unread_count=unread_count
+    )
+
+@app.route("/about")
+def about():
+    # Optionally, pass unread notifications if navbar uses it
+    unread_count = 0
+    if "user_id" in session:
+        unread_count = notifications_collection.count_documents({
+            "user_id": ObjectId(session["user_id"]),
+            "read": False
+        })
+
+    return render_template("about.html", unread_count=unread_count)
 
 
 @app.route("/logout")
@@ -665,28 +707,28 @@ def submit_assessment(course_id, assess_index):
     print("📥 Incoming submission...", file=sys.stderr)
 
     if "user_id" not in session:
-        print("❌ Unauthorized", file=sys.stderr)
+  
         return jsonify({"error": "Unauthorized"}), 401
 
     try:
         oid = ObjectId(course_id)
     except InvalidId:
-        print("❌ Invalid ObjectId", file=sys.stderr)
+
         return jsonify({"error": "Invalid course ID"}), 400
 
     course = courses_collection.find_one({"_id": oid})
     if not course or "assessments" not in course:
-        print("❌ Course/assessments not found", file=sys.stderr)
+
         return jsonify({"error": "Assessment not found"}), 404
 
     try:
         assessment = course["assessments"][assess_index]
     except IndexError:
-        print("❌ Invalid assessment index", file=sys.stderr)
+
         return jsonify({"error": "Invalid assessment index"}), 400
 
     data = request.get_json(silent=True)
-    print("📩 Raw request JSON:", data, file=sys.stderr)
+
 
     if not data or "answers" not in data:
         return jsonify({"error": "No answers received"}), 400
@@ -710,7 +752,6 @@ def submit_assessment(course_id, assess_index):
             if not isinstance(user_ans, list):
                 user_ans = [user_ans]
 
-            print(f"🔍 Q{idx}: user={user_ans}, correct={correct}", file=sys.stderr)
 
             if set(user_ans) == set(correct):
                 score += 1

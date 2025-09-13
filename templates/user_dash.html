@@ -25,22 +25,20 @@
         <ul class="navbar-nav ms-auto align-items-center">
           <li class="nav-item"><a class="nav-link" href="/user/dashboard">Dashboard</a></li>
           <li class="nav-item"><a class="nav-link" href="/browse_courses">Courses</a></li>
-          <li class="nav-item"><a class="nav-link" href="#">About</a></li>
-  <li class="nav-item me-3 position-relative">
-    <a class="nav-link text-dark" href="{{ url_for('user_notifications') }}">
-      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" class="bi bi-bell" viewBox="0 0 16 16">
-        <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2z"/>
-        <path d="M8 1a5 5 0 0 0-5 5v3.086l-.707.707A1 1 0 0 0 3 12h10a1 1 0 0 0 .707-1.707L13 9.086V6a5 5 0 0 0-5-5z"/>
-      </svg>
-      {% if unread_count > 0 %}
-        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-          {{ unread_count }}
-        </span>
-      {% endif %}
-    </a>
-  </li>
-
-
+          <li class="nav-item"><a class="nav-link" href="/about">About</a></li>
+          <li class="nav-item me-3 position-relative">
+            <a class="nav-link text-dark" href="{{ url_for('user_notifications') }}">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" class="bi bi-bell" viewBox="0 0 16 16">
+                <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2z"/>
+                <path d="M8 1a5 5 0 0 0-5 5v3.086l-.707.707A1 1 0 0 0 3 12h10a1 1 0 0 0 .707-1.707L13 9.086V6a5 5 0 0 0-5-5z"/>
+              </svg>
+              {% if unread_count > 0 %}
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                  {{ unread_count }}
+                </span>
+              {% endif %}
+            </a>
+          </li>
           <li class="nav-item ms-3"><a class="btn btn-dark px-4 rounded-pill" href="/logout">Logout</a></li>
         </ul>
       </div>
@@ -62,7 +60,6 @@
       {% endif %}
     {% endwith %}
 
-
     <!-- Profile Section -->
     <div class="card shadow-sm mb-4 rounded-4">
       <div class="card-body">
@@ -76,46 +73,47 @@
       </div>
     </div>
 
-    <!-- Enrolled Courses -->
-    <div class="card shadow-sm rounded-4">
-      <div class="card-body">
-        <h4 class="fw-bold mb-3">📚 Enrolled Courses</h4>
+    <!-- Enrolled Courses Section -->
+    <section class="mb-5">
+      <h4 class="fw-bold mb-4">📚 My Enrolled Courses</h4>
 
-        {% if user.courses and user.courses|length > 0 %}
-          <div class="row g-3">
-            {% for course in user.courses %}
-              <div class="col-md-6">
-                <div class="card h-100 shadow-sm border-0 rounded-4">
-                  <div class="card-body">
-                    <h5 class="card-title fw-bold">{{ course.title }}</h5>
-                    <p class="card-text text-muted">{{ course.description }}</p>
+      {% if enrolled_courses and enrolled_courses|length > 0 %}
+        <div class="row g-4">
+          {% for course in enrolled_courses %}
+            <div class="col-md-6 col-lg-4">
+              <div class="card shadow-sm rounded-4 h-100">
+                {% if course.poster %}
+                  <img src="{{ url_for('static', filename=course.poster) }}"
+                       class="card-img-top rounded-top"
+                       alt="{{ course.name }}">
+                {% endif %}
+                <div class="card-body d-flex flex-column">
+                  <h5 class="fw-bold">{{ course.name }}</h5>
+                  <p class="text-muted small">{{ course.description[:100] }}{% if course.description|length > 100 %}...{% endif %}</p>
 
-                    {% if course.progress is defined %}
-                      <p class="text-muted mb-1">Progress</p>
-                      <div class="progress mb-3" style="height: 18px;">
-                        <div class="progress-bar bg-success fw-semibold" role="progressbar" 
-                             style="width: {{ course.progress }}%;" 
-                             aria-valuenow="{{ course.progress }}" aria-valuemin="0" aria-valuemax="100">
-                          {{ course.progress }}%
-                        </div>
+                  {% if course.progress is defined %}
+                    <p class="text-muted mb-1 mt-auto">Progress</p>
+                    <div class="progress mb-3" style="height: 18px;">
+                      <div class="progress-bar bg-success fw-semibold" role="progressbar"
+                           style="width: {{ course.progress }}%;" aria-valuenow="{{ course.progress }}"
+                           aria-valuemin="0" aria-valuemax="100">
+                        {{ course.progress }}%
                       </div>
-                    {% endif %}
+                    </div>
+                  {% endif %}
 
-                    <a href="#" class="btn btn-sm btn-dark rounded-pill">Continue</a>
-                  </div>
+                  <a href="{{ url_for('user_course_page', course_id=course._id) }}"
+                     class="btn btn-dark w-100 rounded-pill mt-2">Continue</a>
                 </div>
               </div>
-            {% endfor %}
-          </div>
-        {% else %}
-          <p class="text-muted">You haven’t enrolled in any courses yet.</p>
-          <a href="/browse_courses" class="btn btn-dark rounded-pill">Browse Courses</a>
-        {% endif %}
-      </div>
-    </div>
-  <!-- Page Content -->
-  <main class="mt-5 pt-5 container">
-
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="text-muted">You haven’t enrolled in any courses yet.</p>
+        <a href="/browse_courses" class="btn btn-dark rounded-pill">Browse Courses</a>
+      {% endif %}
+    </section>
 
   </main>
 
