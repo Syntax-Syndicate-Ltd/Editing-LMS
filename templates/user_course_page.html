@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex" style="min-height: 90vh;">
+
+  <!-- Sidebar -->
+  <div class="bg-light border-end p-3" style="width: 320px; overflow-y: auto;">
+    <h5 class="fw-bold mb-3">{{ course.name }}</h5>
+
+    <ul class="list-group list-group-flush">
+      {% for week in course.weeks %}
+        <li class="list-group-item fw-bold">{{ week.title }}</li>
+        {% for item in week.content %}
+          <li class="list-group-item ps-4 content-link" style="cursor:pointer;"
+              data-title="{{ item.title }}"
+              data-type="{{ item.type }}"
+              data-url="{{ item.url if item.url else '' }}"
+              data-desc="{{ item.description if item.description else '' }}">
+            {{ item.title }}
+            {% if item.type == "video" %}
+              <span class="badge bg-danger ms-2">Video</span>
+            {% elif item.type == "assignment" %}
+              <span class="badge bg-info ms-2">Assignment</span>
+            {% elif item.type == "pdf" %}
+              <span class="badge bg-secondary ms-2">PDF</span>
+            {% endif %}
+
+            {% if item.type == "video" and item.embed %}
+              <script type="text/template" class="embed-template">
+                {{ item.embed|safe }}
+              </script>
+            {% endif %}
+          </li>
+        {% endfor %}
+      {% endfor %}
+
+      {% if course.assessments %}
+        <li class="list-group-item fw-bold mt-3">Assessments</li>
+        {% for assess in course.assessments %}
+          <li class="list-group-item ps-4 content-link" style="cursor:pointer;"
+              data-title="{{ assess.title }}"
+              data-type="assessment"
+              data-desc="{{ assess.description }}"
+              data-index="{{ loop.index0 }}">
+            {{ assess.title }}
+            <span class="badge bg-warning ms-2">Assessment</span>
+
+            {% if assess.latest_score %}
+              <span class="badge bg-success ms-2">
+                Score: {{ assess.latest_score.score }} / {{ assess.latest_score.total }}
+              </span>
+            {% endif %}
+
+            <script type="text/template" class="assessment-template">
+              {{ assess.questions|tojson|safe }}
+            </script>
+          </li>
+        {% endfor %}
+      {% endif %}
+    </ul>
+  </div>
+
+  <!-- Main Content -->
+  <div class="flex-grow-1 p-4">
+    <div id="content-display" class="card shadow-sm p-4 rounded-4">
+      <h4 class="fw-bold">Select a lecture, assignment, or assessment</h4>
+      <p class="text-muted">Your selected content will appear here.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+document.querySelectorAll(".content-link").forEach(function(item) {
+  item.addEventListener("click", function() {
+    const title = this.dataset.title || "";
+    const type = this.dataset.type || "";
+    const desc = this.dataset.desc || "";
+    const url = this.dataset.url || "";
+    const contentDisplay = document.getElementById("content-display");
+
+    let contentHTML = `<h4 class="fw-bold mb-3">${title}</h4>`;
+
+    if (type === "video") {
+      const template = this.querySelector(".embed-template");
+      if (template && template.innerHTML.trim() !== "") {
+        contentHTML += template.innerHTML;
+      } else if (url) {
+        contentHTML += `<div class="ratio ratio-16x9"><iframe src="${url}" allowfullscreen></iframe></div>`;
+      } else {
+        contentHTML += `<p class="text-muted">No video available.</p>`;
+      }
+    }
+    else if (type === "assessment") {
+      contentHTML += `<p><strong>Description:</strong> ${desc}</p>`;
+      const template = this.querySelector(".assessment-template");
+      let questions = [];
+      try {
+        questions = JSON.parse(template ? template.innerHTML : "[]");
+      } catch (e) {
+        questions = [];
+      }
+
+      contentHTML += `<form id="assessment-form">`;
+      questions.forEach((q, idx) => {
+        contentHTML += `<div class="mb-3"><strong>Q${idx+1}:</strong> ${q.question}<br>`;
+        (q.options || []).forEach((opt, i) => {
+          contentHTML += `
+            <div class="form-check ps-3">
+              <input class="form-check-input" type="radio" name="q${idx}" value="${i}" id="q${idx}_${i}">
+              <label class="form-check-label" for="q${idx}_${i}">${opt}</label>
+            </div>
+          `;
+        });
+        contentHTML += `</div>`;
+      });
+      contentHTML += `<button type="submit" class="btn btn-primary">Submit</button></form>`;
+
+      contentDisplay.innerHTML = contentHTML;
+
+      const form = document.getElementById("assessment-form");
+      if (form) {
+        form.addEventListener("submit", (e) => {
+          e.preventDefault();
+
+          const answers = [];
+          questions.forEach((q, idx) => {
+            const selected = form.querySelector(`input[name="q${idx}"]:checked`);
+            answers.push(selected ? parseInt(selected.value, 10) : null);
+          });
+
+          const assessIndex = this.dataset.index;
+
+          fetch(`/submit_assessment/{{ course._id }}/${assessIndex}`, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({answers})
+          })
+          .then(res => res.json().catch(() => ({ error: "Invalid server response" })))
+          .then(data => {
+            if (data.error) {
+              contentDisplay.innerHTML = `<div class="alert alert-danger">Error: ${data.error}</div>`;
+            } else {
+              const total = data.total !== undefined ? data.total : questions.length;
+              contentDisplay.innerHTML = `
+                <div class="alert alert-success">
+                  ✅ Assessment submitted successfully!<br>
+                  <strong>Score:</strong> ${data.score} / ${total}
+                </div>
+              `;
+
+              // Update score badge in sidebar
+              let badge = this.querySelector(".badge.bg-success");
+              if (!badge) {
+                badge = document.createElement("span");
+                badge.className = "badge bg-success ms-2";
+                this.appendChild(badge);
+              }
+              badge.innerText = `Score: ${data.score} / ${total}`;
+            }
+          })
+          .catch(err => {
+            console.error("Submit error:", err);
+            contentDisplay.innerHTML = `<div class="alert alert-danger">Error submitting assessment.</div>`;
+          });
+        }, { once: true });
+      }
+
+      return;
+    }
+    else if (type === "pdf" && url) {
+      contentHTML += `<a href="${url}" target="_blank" class="btn btn-outline-primary">📄 View PDF</a>`;
+    }
+    else if (type === "assignment") {
+      contentHTML += `<p><strong>Assignment:</strong> ${desc}</p>`;
+    }
+    else if (type === "lecture") {
+      if (url) {
+        contentHTML += `<div class="ratio ratio-16x9"><iframe src="${url}" allowfullscreen></iframe></div>`;
+      } else {
+        contentHTML += `<p class="text-muted">No lecture URL available.</p>`;
+      }
+    }
+    else {
+      contentHTML += `<p class="text-muted">Unknown content type.</p>`;
+    }
+
+    contentDisplay.innerHTML = contentHTML;
+  });
+});
+</script>
+
+{% endblock %}

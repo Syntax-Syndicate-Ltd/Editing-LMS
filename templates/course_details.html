@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="container mt-5 pt-5">
+  <div class="row g-4 align-items-start">
+    
+    <!-- Poster -->
+    <div class="col-md-4">
+      {% if course.poster %}
+        <img src="{{ url_for('static', filename=course.poster) }}"
+             alt="Course Poster"
+             class="img-fluid rounded shadow-sm">
+      {% else %}
+        <div class="bg-light d-flex align-items-center justify-content-center rounded shadow-sm"
+             style="height: 220px;">
+          <span class="text-muted">No Poster</span>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Course Info -->
+    <div class="col-md-8">
+      <h2 class="fw-bold">{{ course.name }}</h2>
+      <p class="text-muted">{{ course.description }}</p>
+
+      <ul class="list-group list-group-flush mb-3">
+        {% if course.instructor %}
+          <li class="list-group-item"><strong>Instructor:</strong> {{ course.instructor }}</li>
+        {% endif %}
+        {% if course.duration %}
+          <li class="list-group-item"><strong>Duration:</strong> {{ course.duration }}</li>
+        {% endif %}
+        {% if course.level %}
+          <li class="list-group-item"><strong>Level:</strong> {{ course.level }}</li>
+        {% endif %}
+        {% if course.category %}
+          <li class="list-group-item"><strong>Category:</strong> {{ course.category }}</li>
+        {% endif %}
+        {% if course.language %}
+          <li class="list-group-item"><strong>Language:</strong> {{ course.language }}</li>
+        {% endif %}
+        {% if course.price %}
+          <li class="list-group-item"><strong>Price:</strong> ₹{{ course.price }}</li>
+        {% endif %}
+      </ul>
+
+      <!-- Actions -->
+      <div class="d-flex justify-content-between mt-3">
+        <a href="{{ url_for('browse_courses') }}" class="btn btn-outline-secondary rounded-pill">
+          ⬅ Back
+        </a>
+
+        {% set enrollment = user_enrollments.get(course._id) %}
+        {% if enrollment %}
+          {% if enrollment.status == "pending_admin_approval" %}
+            <button class="btn btn-warning rounded-pill" disabled>
+              Pending Approval
+            </button>
+          {% elif enrollment.status == "approved" %}
+            <button class="btn btn-success rounded-pill" disabled>
+              Enrolled
+            </button>
+          {% elif enrollment.status == "rejected" %}
+            <a href="{{ url_for('request_enrollment', course_id=course._id) }}"
+               class="btn btn-outline-dark rounded-pill">
+              Reapply
+            </a>
+          {% endif %}
+        {% else %}
+          <a href="{{ url_for('request_enrollment', course_id=course._id) }}"
+             class="btn btn-outline-dark rounded-pill">
+            Enroll
+          </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

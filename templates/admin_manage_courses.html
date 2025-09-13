@@ -26,22 +26,21 @@
           <li class="nav-item"><a class="nav-link text-white" href="{{ url_for('admin_dashboard') }}">Dashboard</a></li>
           <li class="nav-item"><a class="nav-link text-white" href="{{ url_for('admin_users') }}">Registered Users</a></li>
           <li class="nav-item"><a class="nav-link text-white active" href="{{ url_for('admin_manage_courses') }}">Manage Courses</a></li>
-                         <li class="nav-item"><a class="nav-link text-white active" href="{{ url_for('admin_course_enrollments') }}">Course Enrollments</a></li>
+          <li class="nav-item"><a class="nav-link text-white" href="{{ url_for('admin_course_enrollments') }}">Course Enrollments</a></li>
           <li class="nav-item"><a class="nav-link text-white" href="{{ url_for('admin_courses') }}">Course Submissions</a></li>
-<li class="nav-item me-3 position-relative">
-  <a class="nav-link text-white" href="{{ url_for('admin_notifications') }}">
-    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" class="bi bi-bell" viewBox="0 0 16 16">
-      <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2z"/>
-      <path d="M8 1a5 5 0 0 0-5 5v3.086l-.707.707A1 1 0 0 0 3 12h10a1 1 0 0 0 .707-1.707L13 9.086V6a5 5 0 0 0-5-5z"/>
-    </svg>
-    {% if unread_count > 0 %}
-      <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-        {{ unread_count }}
-      </span>
-    {% endif %}
-  </a>
-</li>
-
+          <li class="nav-item me-3 position-relative">
+            <a class="nav-link text-white" href="{{ url_for('admin_notifications') }}">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" class="bi bi-bell" viewBox="0 0 16 16">
+                <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2z"/>
+                <path d="M8 1a5 5 0 0 0-5 5v3.086l-.707.707A1 1 0 0 0 3 12h10a1 1 0 0 0 .707-1.707L13 9.086V6a5 5 0 0 0-5-5z"/>
+              </svg>
+              {% if unread_count > 0 %}
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                  {{ unread_count }}
+                </span>
+              {% endif %}
+            </a>
+          </li>
 
           <a class="btn btn-outline-light px-4 rounded-pill" 
              href="{{ url_for('logout') }}" 
@@ -58,46 +57,111 @@
     <h2 class="fw-bold mb-4">📚 Manage Courses</h2>
 
     <!-- Course List -->
-    {% if courses %}
-      <table class="table table-bordered shadow-sm align-middle">
-        <thead class="table-dark">
-          <tr>
-            <th>Course Name</th>
-            <th>Description</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for course in courses %}
-          <tr>
-            <td>{{ course.name }}</td>
-            <td>{{ course.description }}</td>
-            <td>
-              <a href="{{ url_for('course_dashboard', course_id=course._id) }}" class="btn btn-sm btn-primary">
-                Manage
-              </a>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    {% else %}
-      <p class="text-muted">No courses found. Add one below.</p>
-    {% endif %}
+<!-- Course List -->
+{% if courses %}
+  <table class="table table-bordered shadow-sm align-middle">
+    <thead class="table-dark">
+      <tr>
+        <th>Poster</th>
+        <th>Name</th>
+        <th>Instructor</th>
+        <th>Duration</th>
+        <th>Level</th>
+        <th>Category</th>
+        <th>Language</th>
+        <th>Price</th>
+        <th>Description</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for course in courses %}
+      <tr>
+        <td>
+          {% if course.poster %}
+            <img src="{{ url_for('static', filename=course.poster) }}" 
+                 alt="Poster" class="img-thumbnail"
+                 style="width:80px; height:80px; object-fit:cover; border-radius:8px;">
+          {% else %}
+            <span class="text-muted">No Poster</span>
+          {% endif %}
+        </td>
+        <td>{{ course.name }}</td>
+        <td>{{ course.instructor }}</td>
+        <td>{{ course.duration }}</td>
+        <td>{{ course.level }}</td>
+        <td>{{ course.category }}</td>
+        <td>{{ course.language }}</td>
+        <td>₹{{ course.price }}</td>
+        <td style="max-width:200px;">{{ course.description }}</td>
+        <td>
+          <a href="{{ url_for('course_dashboard', course_id=course._id) }}" class="btn btn-sm btn-primary">
+            Manage
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p class="text-muted">No courses found. Add one below.</p>
+{% endif %}
 
     <hr>
 
-    <!-- Add Course Form -->
+    <!-- Add New Course -->
     <h4 class="fw-bold mb-3">➕ Add a New Course</h4>
-    <form method="POST" action="{{ url_for('admin_manage_courses') }}">
+    <form method="POST" action="{{ url_for('admin_manage_courses') }}" enctype="multipart/form-data">
       <div class="mb-3">
         <label for="course_name" class="form-label">Course Name</label>
         <input type="text" class="form-control" name="course_name" id="course_name" required>
       </div>
+
       <div class="mb-3">
         <label for="description" class="form-label">Description</label>
         <textarea class="form-control" name="description" id="description"></textarea>
       </div>
+
+      <div class="mb-3">
+        <label for="poster" class="form-label">Course Poster (Square Image)</label>
+        <input type="file" class="form-control" name="poster" id="poster" accept="image/*">
+      </div>
+
+      <div class="mb-3">
+        <label for="instructor" class="form-label">Instructor</label>
+        <input type="text" class="form-control" name="instructor" id="instructor">
+      </div>
+
+      <div class="mb-3">
+        <label for="duration" class="form-label">Duration</label>
+        <input type="text" class="form-control" name="duration" id="duration" placeholder="e.g. 6 weeks">
+      </div>
+
+      <div class="mb-3">
+        <label for="level" class="form-label">Level</label>
+        <select class="form-select" name="level" id="level">
+          <option value="">Select Level</option>
+          <option value="Beginner">Beginner</option>
+          <option value="Intermediate">Intermediate</option>
+          <option value="Advanced">Advanced</option>
+        </select>
+      </div>
+
+      <div class="mb-3">
+        <label for="category" class="form-label">Category</label>
+        <input type="text" class="form-control" name="category" id="category" placeholder="e.g. Video Editing">
+      </div>
+
+      <div class="mb-3">
+        <label for="language" class="form-label">Language</label>
+        <input type="text" class="form-control" name="language" id="language" placeholder="e.g. English">
+      </div>
+
+      <div class="mb-3">
+        <label for="price" class="form-label">Price</label>
+        <input type="number" class="form-control" name="price" id="price" placeholder="e.g. 999">
+      </div>
+
       <button type="submit" class="btn btn-dark rounded-pill">Add Course</button>
     </form>
   </main>

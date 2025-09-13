@@ -2,52 +2,70 @@
 
 {% block content %}
 <section class="container mt-5 pt-5">
-  <h2 class="fw-bold mb-4 text-center">📚 Browse Courses</h2>
 
+  <!-- Enrolled Courses Section -->
+  {% if enrolled_courses and enrolled_courses|length > 0 %}
+    <h2 class="fw-bold mb-4 text-center">🎓 My Enrolled Courses</h2>
+    <div class="row g-4 mb-5">
+      {% for course in enrolled_courses %}
+        <div class="col-md-6 col-lg-4">
+          <div class="card shadow-sm rounded-4 h-100">
+            {% if course.poster %}
+              <img src="{{ url_for('static', filename=course.poster) }}"
+                   class="card-img-top rounded-top"
+                   alt="{{ course.name }}">
+            {% endif %}
+            <div class="card-body">
+              <h5 class="fw-bold">{{ course.name }}</h5>
+              <p class="text-muted small">{{ course.description[:100] }}...</p>
+              <a href="{{ url_for('user_course_page', course_id=course._id) }}"
+                 class="btn btn-dark w-100 rounded-pill mt-2">
+                 Enter Course
+              </a>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <!-- Browse All Courses Section -->
+  <h2 class="fw-bold mb-4 text-center">📚 Browse Courses</h2>
   {% if courses and courses|length > 0 %}
     <div class="row g-4">
       {% for course in courses %}
-        <div class="col-12">
-          <div class="card shadow-sm rounded-4 p-4 h-100">
-            <h4 class="fw-bold">{{ course.name }}</h4>
-            <p class="text-muted">{{ course.description }}</p>
-
-            {% if course.instructor %}
-              <p><strong>Instructor:</strong> {{ course.instructor }}</p>
+        <div class="col-md-6 col-lg-4">
+          <div class="card shadow-sm rounded-4 h-100">
+            {% if course.poster %}
+              <img src="{{ url_for('static', filename=course.poster) }}"
+                   class="card-img-top rounded-top"
+                   alt="{{ course.name }}">
             {% endif %}
-            
-            {% if course.duration %}
-              <p><strong>Duration:</strong> {{ course.duration }}</p>
-            {% endif %}
+            <div class="card-body">
+              <h5 class="fw-bold">{{ course.name }}</h5>
+              <p class="text-muted small">{{ course.description[:100] }}...</p>
 
-            {% if course.level %}
-              <p><strong>Level:</strong> {{ course.level }}</p>
-            {% endif %}
-
-            <div class="d-flex justify-content-between align-items-center mt-3">
-              <a href="#" class="btn btn-dark rounded-pill">View Details</a>
-
-              {% set enrollment = user_enrollments.get(course._id) %}
-              {% if enrollment %}
-                {% if enrollment.status == "pending_admin_approval" %}
-                  <button class="btn btn-warning rounded-pill" disabled>
-                    Pending Approval
-                  </button>
-                {% elif enrollment.status == "approved" %}
-                  <button class="btn btn-success rounded-pill" disabled>
-                    Enrolled
-                  </button>
-                {% elif enrollment.status == "rejected" %}
-                  <a href="{{ url_for('request_enrollment', course_id=course._id) }}" class="btn btn-outline-dark rounded-pill">
-                    Reapply
-                  </a>
-                {% endif %}
-              {% else %}
-                <!-- Redirects to the upload form -->
-                <a href="{{ url_for('request_enrollment', course_id=course._id) }}" class="btn btn-outline-dark rounded-pill">
-                  Enroll
+              <div class="d-flex justify-content-between align-items-center mt-2">
+                <a href="{{ url_for('course_details', course_id=course._id) }}"
+                   class="btn btn-outline-dark rounded-pill btn-sm">
+                   View Details
                 </a>
-              {% endif %}
+
+                {% set enrollment = user_enrollments.get(course._id) %}
+                {% if enrollment %}
+                  {% if enrollment.status == "pending_admin_approval" %}
+                    <button class="btn btn-warning rounded-pill btn-sm" disabled>Pending</button>
+                  {% elif enrollment.status == "approved" %}
+                    <button class="btn btn-success rounded-pill btn-sm" disabled>Enrolled</button>
+                  {% elif enrollment.status == "rejected" %}
+                    <a href="{{ url_for('request_enrollment', course_id=course._id) }}"
+                       class="btn btn-outline-dark rounded-pill btn-sm">Reapply</a>
+                  {% endif %}
+                {% else %}
+                  <a href="{{ url_for('request_enrollment', course_id=course._id) }}"
+                     class="btn btn-dark rounded-pill btn-sm">Enroll</a>
+                {% endif %}
+              </div>
             </div>
           </div>
         </div>
