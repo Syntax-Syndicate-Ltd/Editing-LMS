@@ -668,14 +668,12 @@ def submit_assessment(course_id, assess_index):
         print("❌ Unauthorized", file=sys.stderr)
         return jsonify({"error": "Unauthorized"}), 401
 
-    # Validate course_id
     try:
         oid = ObjectId(course_id)
     except InvalidId:
         print("❌ Invalid ObjectId", file=sys.stderr)
         return jsonify({"error": "Invalid course ID"}), 400
 
-    # Find course and assessment
     course = courses_collection.find_one({"_id": oid})
     if not course or "assessments" not in course:
         print("❌ Course/assessments not found", file=sys.stderr)
@@ -687,7 +685,6 @@ def submit_assessment(course_id, assess_index):
         print("❌ Invalid assessment index", file=sys.stderr)
         return jsonify({"error": "Invalid assessment index"}), 400
 
-    # Parse incoming answers
     data = request.get_json(silent=True)
     print("📩 Raw request JSON:", data, file=sys.stderr)
 
@@ -698,20 +695,16 @@ def submit_assessment(course_id, assess_index):
     questions = assessment.get("questions") or []
     score = 0
 
-    # Scoring loop
+    # Scoring
     for idx, q in enumerate(questions):
         correct = q.get("correct")
-
-        # Normalize correct answer
         if isinstance(correct, int):
             correct = [correct]
         elif not isinstance(correct, list):
             correct = []
-
         if not correct:
             continue
 
-        # Compare with user answer
         if idx < len(answers) and answers[idx] is not None:
             user_ans = answers[idx]
             if not isinstance(user_ans, list):
@@ -722,7 +715,6 @@ def submit_assessment(course_id, assess_index):
             if set(user_ans) == set(correct):
                 score += 1
 
-    # Store submission
     submission_doc = {
         "user_id": session["user_id"],
         "course_id": str(course["_id"]),
@@ -731,7 +723,13 @@ def submit_assessment(course_id, assess_index):
         "score": score,
         "total": len(questions)
     }
-    submissions_collection.insert_one(submission_doc)
+
+    # Replace previous submission for the same assessment
+    submissions_collection.update_one(
+        {"user_id": session["user_id"], "course_id": str(course["_id"]), "assessment_index": assess_index},
+        {"$set": submission_doc},
+        upsert=True
+    )
 
     response = {
         "score": score,
@@ -740,6 +738,7 @@ def submit_assessment(course_id, assess_index):
     }
     print("✅ Returning JSON:", response, file=sys.stderr)
     return jsonify(response)
+
 # --------------- Course Dashboard ---------------
 @app.route("/admin/course/<course_id>/dashboard", methods=["GET", "POST"])
 def course_dashboard(course_id):
